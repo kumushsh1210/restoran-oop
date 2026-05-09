@@ -1,93 +1,84 @@
-import datetime
+import tkinter as tk
+from tkinter import messagebox
+from PIL import Image, ImageTk
+import requests
+from io import BytesIO
 
 
-# 1. Taomlar klassi
-class Taom:
-    def __init__(self, nomi, narxi):
-        self.nomi = nomi
-        self.narxi = narxi
+class RestoranOnlineRasmlar:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Gourmet Restoran v4.5")
+        self.root.geometry("900x650")
+        self.root.configure(bg="#f0f2f5")
 
-    def __str__(self):
-        return f"{self.nomi:15} | {self.narxi} so'm"
-
-
-# 2. Buyurtma va To'lov klassi
-class Buyurtma:
-    def __init__(self, id):
-        self.id = id
-        self.savat = []
-        self.vaqt = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-
-    def qoshish(self, taom):
-        self.savat.append(taom)
-        print(f"✅ {taom.nomi} savatga qo'shildi.")
-
-    def jami(self):
-        return sum(t.narxi for t in self.savat)
-
-
-# 3. Asosiy Restoran tizimi
-class RestoranTizimi:
-    def __init__(self):
-        # Menyu (Buni o'zgartirishingiz mumkin)
-        self.menyu = [
-            Taom("Osh", 35000),
-            Taom("Shashlik", 15000),
-            Taom("Manti", 30000),
-            Taom("Choy", 5000)
+        # Taomlar va ularning internetdagi rasmlari
+        self.menu_data = [
+            {"nomi": "Palov", "narxi": 35000, "link": "https://freepik.com"},
+            {"nomi": "Manti", "narxi": 30000, "link": "https://freepik.com"},
+            {"nomi": "Shashlik", "narxi": 18000, "link": "https://freepik.com"},
+            {"nomi": "Choy", "narxi": 5000, "link": "https://freepik.com"}
         ]
-        self.tarix_fayli = "tarix.txt"
 
-    def menyuni_korsat(self):
-        print("\n--- RESTORAN MENYUSI ---")
-        for i, taom in enumerate(self.menyu, 1):
-            print(f"{i}. {taom}")
+        self.savat = []
+        self.interfeys_qurish()
 
-    def tarixga_yozish(self, buyurtma):
-        with open(self.tarix_fayli, "a", encoding="utf-8") as f:
-            f.write(f"ID: {buyurtma.id} | Vaqt: {buyurtma.vaqt} | Jami: {buyurtma.jami()} so'm\n")
+    def rasm_yuklash(self, url):
+        try:
+            response = requests.get(url)
+            img_data = BytesIO(response.content)
+            img = Image.open(img_data)
+            img = img.resize((180, 140))
+            return ImageTk.PhotoImage(img)
+        except:
+            return None
 
-    def ishga_tushirish(self):
-        buyurtma_id = 1
-        while True:
-            print("\n1. Menyu | 2. Buyurtma berish | 3. Tarixni ko'rish | 4. Chiqish")
-            tanlov = input("Amalni tanlang: ")
+    def interfeys_qurish(self):
+        tk.Label(self.root, text="🇺🇿 MILLIY TAOMLAR MENYUSI", font=("Helvetica", 24, "bold"), bg="#f0f2f5").pack(
+            pady=20)
 
-            if tanlov == "1":
-                self.menyuni_korsat()
+        main_frame = tk.Frame(self.root, bg="#f0f2f5")
+        main_frame.pack(pady=10)
 
-            elif tanlov == "2":
-                yangi_buyurtma = Buyurtma(buyurtma_id)
-                self.menyuni_korsat()
-                while True:
-                    t_raqam = input("Taom raqamini kiriting (Tugatish uchun '0'): ")
-                    if t_raqam == "0": break
-                    try:
-                        tanlangan = self.menyu[int(t_raqam) - 1]
-                        yangi_buyurtma.qoshish(tanlangan)
-                    except:
-                        print("❌ Xato raqam kiritdingiz!")
+        self.img_list = []  # Xotirada saqlash uchun
 
-                if yangi_buyurtma.savat:
-                    print(f"\nJami hisob: {yangi_buyurtma.jami()} so'm")
-                    self.tarixga_yozish(yangi_buyurtma)
-                    buyurtma_id += 1
-                    print("💰 To'lov saqlandi va tarixga yozildi.")
+        for i, taom in enumerate(self.menu_data):
+            card = tk.Frame(main_frame, bg="white", bd=1, relief="ridge", padx=10, pady=10)
+            card.grid(row=0, column=i, padx=15)
 
-            elif tanlov == "3":
-                print("\n--- SOTUVLAR TARIXI ---")
-                try:
-                    with open(self.tarix_fayli, "r", encoding="utf-8") as f:
-                        print(f.read())
-                except:
-                    print("Tarix hali bo'sh.")
+            # Internetdan rasmni olish
+            photo = self.rasm_yuklash(taom["link"])
+            if photo:
+                lbl = tk.Label(card, image=photo, bg="white")
+                lbl.pack()
+                self.img_list.append(photo)
 
-            elif tanlov == "4":
-                print("Dastur yopildi. Xayr!")
-                break
+            tk.Label(card, text=taom["nomi"], font=("Arial", 14, "bold"), bg="white").pack(pady=5)
+            tk.Label(card, text=f"{taom['narxi']} so'm", fg="#2ecc71", font=("Arial", 12), bg="white").pack()
+
+            tk.Button(card, text="Savatga qo'shish", bg="#3498db", fg="white", font=("Arial", 10, "bold"),
+                      command=lambda t=taom: self.savatga_qosh(t)).pack(pady=10)
+
+        self.btn_buyurtma = tk.Button(self.root, text="🛒 BUYURTMA BERISH (0 ta)", font=("Arial", 16, "bold"),
+                                      bg="#e67e22", fg="white", width=30, height=2, command=self.yakunlash)
+        self.btn_buyurtma.pack(pady=30)
+
+    def savatga_qosh(self, taom):
+        self.savat.append(taom)
+        self.btn_buyurtma.config(text=f"🛒 BUYURTMA BERISH ({len(self.savat)} ta)")
+
+    def yakunlash(self):
+        if not self.savat:
+            messagebox.showwarning("Bo'sh!", "Savatga hali hech narsa qo'shmadingiz.")
+            return
+
+        jami = sum(t["narxi"] for t in self.savat)
+        messagebox.showinfo("Muvaffaqiyatli", f"Buyurtmangiz qabul qilindi!\nJami summa: {jami} so'm")
+        self.savat = []
+        self.btn_buyurtma.config(text="🛒 BUYURTMA BERISH (0 ta)")
 
 
-# Dasturni yurgizish
 if __name__ == "__main__":
-    app = RestoranTizimi()
-    app.ishga_tushirish()
+    root = tk.Tk()
+    app = RestoranOnlineRasmlar(root)
+    root.mainloop()
